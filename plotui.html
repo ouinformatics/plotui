@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link type="text/css" href="http://static.cybercommons.org/css/cybercomui/jquery-ui-1.8.13.custom.css" rel="Stylesheet"/>
+<link rel="stylesheet" href="http://static.cybercommons.org/bootstrap/css/bootstrap.min.css"> 
+<script type="text/javascript" src="http://static.cybercommons.org/js/jquery-1.6.2.min.js"></script>
+<script type="text/javascript" src="http://static.cybercommons.org/js/jquery-ui-1.8.10.custom.min.js"></script>
+<script type="text/javascript" src="http://static.cybercommons.org/js/flot/jquery.flot.js"></script>
+<style>
+
+.border {
+    border-style: solid;
+    border-width: 1px;
+
+}
+
+.yaxis {
+    vertical-align: center;
+    text-align: center;
+    height: 540px;
+
+}
+#plot {
+    height: 540px;
+    width: 540px;
+
+}
+
+#vars {
+    list-style-type: none;
+}
+
+
+#vars li { margin-top: 1px;}
+
+</style>
+
+<script>
+$(document).ready( function() {
+
+host = "http://test.cybercommons.org/"
+
+function getDbsCol(params) {
+    if(params.hasOwnProperty('db')) {
+        url = host + "/mongo/db_find/" + params.db + "/"
+    }
+    else {
+        url = host + "/mongo/db_find/"
+    }
+    params.selector.empty();
+    $.getJSON(url, function(data) {
+            $.each(data, function(i,val) {
+            params.selector.append("<option>"+val+"</option>"); 
+        });
+    });
+}
+
+
+
+function getVariables() {
+    $("#vars").empty();
+    var db =  $('#pickdb').val();
+    var col = $('#pickcol').val();
+    var url = host + "/mongo/db_find/" + db + "/" + col + '/{"limit":1}';
+    $.getJSON(url, 
+    function(data) { 
+        $.each(data[0], function(k,v) { console.log(k); $('#vars').append('<li class="label label-info">'+k+'</li>'); });
+        $('#vars .label').draggable({helper: 'clone'});
+    });
+}    
+
+    
+$("#yaxis,#xaxis").droppable({drop: function(event,ui) { $(this).html(ui.draggable.text()); $(this).addClass('label label-info'); getData()} });
+$('#pickdb').change( function() { getDbsCol({selector: $("#pickcol"), db: $(this).val()} ) } );
+$('#pickcol').change( function() { getVariables(); });
+
+$('#factor').droppable({drop: function(event, ui) { dropFactor(event, ui)} });
+$('#clearfactor').click(function() {$('#factor').empty()});
+$('#factor').change( function() { 
+    spec = { v: $(this).attr('data-src'), q: $(this).val() }
+    getData(spec)
+});
+getDbsCol({selector: $('#pickdb')})
+
+function getDistinct(query,callback) {
+    var outList = [];
+    url = "http://test.cybercommons.org/mongo/distinct/"+ query.db + "/" + query.col + "/" + query.v + "/" + "{}"
+    $.getJSON( url, function(data) { 
+        $.each(data, function(i,item) { 
+            outList.push( item ); 
+        }); 
+        if(typeof callback == "function") { 
+            callback(this, data); 
+        } 
+
+    });
+}
+
+function dropFactor(event, ui) {
+    $('#factor').empty();
+    $('#factor').attr('data-src', ui.draggable.text() );
+    getDistinct({db: $('#pickdb').val(), col: $('#pickcol').val(), v: ui.draggable.text()}, 
+        function(obj, data) { 
+            $.each(data, 
+                function(i,item) {
+                    if(String(item).length > 0) { 
+                        $('#factor').append('<option>'+String(item)+'</option>');
+                    }
+            });
+    });
+};
+
+function getData(spec) { 
+    var outData = [];
+    var db =  $('#pickdb').val();
+    var col = $('#pickcol').val();
+    var base = "http://test.cybercommons.org/mongo/db_find/";
+    var query = {fields:[$('#xaxis').text(),$('#yaxis').text()]};
+    if(spec) {
+        var specout={};
+        specout[String(spec.v)] = spec.q;
+        query['spec'] =  specout;
+    }
+    console.log(query);
+    var url = base + '/' + db + '/' + col + '/' + JSON.stringify(query) + "?callback=?"
+    $.getJSON( url, function(data) {
+        $.each(data, function(i, item) {
+            outData.push([ item[$('#xaxis').text()] , item[$('#yaxis').text()] ]);  
+        });
+        $.plot($("#plot"), [{ color: "rgb(105,196,173)", data: outData }], {points: {show: true}, lines: {show: false} } );
+        
+    });
+
+}
+
+
+
+
+
+});
+
+</script>
+
+</head>
+
+<body>
+
+<div class="well">
+  <div class="row">
+    <div class="offset3 span5">
+        <label>Factor: <div id="fname" class="label label-info"></div></label>
+        <i id="addfactor" class="icon-plus"></i>
+        <select id="factor" class="span4"></select>
+        <i id="clearfactor" class="icon-remove"></i>
+    </div>
+  </div>
+  <div class="row">
+    <div id=datachoose class="span3"><h4>Variables</h4><select id="pickdb"><option>DB</option></select><select id="pickcol"><option>Collection</option></select><ol id="vars"></ol></div>
+    <div id=yaxis class="span2 border">Y-axis</div>
+    <div id=plot class="span7 ">Plot Contents </div>
+    <div id=xaxis class="span7 offset5 border">X-Axis</div>
+  </div>
+</div>
+</body>
+
+</html>
