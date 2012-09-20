@@ -1,0 +1,25 @@
+.border {
+    border-style: solid;
+    border-width: 1px;
+
+}
+
+.yaxis {
+    vertical-align: center;
+    text-align: center;
+    height: 540px;
+
+}
+#plot {
+    height: 540px;
+    width: 540px;
+
+}
+
+#vars {
+    list-style-type: none;
+}
+
+
+#vars li { margin-top: 1px;}
+
